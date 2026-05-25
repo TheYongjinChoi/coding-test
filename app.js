@@ -170,52 +170,49 @@ function updateHighlight() {
 }
 
 function highlightR(code) {
-  const keywords  = /\b(if|else|for|while|repeat|break|next|return|function|in|TRUE|FALSE|NULL|NA|NaN|Inf|T|F)\b/g;
-  const builtins  = /\b(library|require|install\.packages|print|cat|paste|paste0|c|list|data\.frame|matrix|vector|length|nrow|ncol|dim|str|summary|head|tail|class|typeof|is\.na|which|seq|rep|mean|median|sd|var|sum|min|max|range|table|subset|merge|rbind|cbind|apply|lapply|sapply|mapply|do\.call|Reduce|Filter|Map|read\.csv|write\.csv|readRDS|saveRDS|setwd|getwd|ls|rm|source|options|Sys\.time|proc\.time|system\.time|ggplot|aes|geom_point|geom_line|geom_bar|geom_histogram|facet_wrap|labs|theme|filter|select|mutate|arrange|group_by|summarise|summarize|left_join|right_join|inner_join|full_join|pivot_longer|pivot_wider|rename|pull|slice|distinct|count|matchit|causal_forest|average_treatment_effect|DoubleMLPLR|DoubleMLIRM|DoubleMLData\$new|lrn|lrn\$new)\b/g;
-  const strings   = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
-  const numbers   = /\b(\d+\.?\d*([eE][+-]?\d+)?L?)\b/g;
-  const comments  = /(#.*$)/gm;
-  const operators = /(<-|->|<<-|->>|%>%|\|>|%in%|%\*%|==|!=|<=|>=|&&|\|\||!|\+|-|\*|\/|\^|::|:|~)/g;
-  const funcCall  = /\b([a-zA-Z_.][a-zA-Z0-9_.]*)(?=\s*\()/g;
+  // 1단계: HTML escape 먼저
+  let out = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
-  // 순서 중요: 먼저 escape, 그 다음 순차 치환
-  let out = escHtml(code);
+  // 2단계: 주석 (다른 패턴보다 먼저 — 줄 끝까지)
+  out = out.replace(/(#[^\n]*)/g, '\x00CMT\x01$1\x02');
 
-  // 문자열 (먼저)
-  out = out.replace(/(&#34;|&#39;|`)((?:\\.|(?!\1)[^\\])*)\1/g,
-    (m) => `<s-str>${m}</s-str>`);
+  // 3단계: 문자열 (" ' ` )
+  out = out.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
+    '\x00STR\x01$1\x02');
 
-  // 주석
-  out = out.replace(/(#.*$)/gm, (m) => `<s-cmt>${m}</s-cmt>`);
+  // 4단계: 키워드 (단어 경계)
+  const kw = /\b(if|else|for|while|repeat|break|next|return|function|in|TRUE|FALSE|NULL|NA|NaN|Inf|T|F)\b/g;
+  out = out.replace(kw, '\x00KW\x01$1\x02');
 
-  // 키워드
-  out = out.replace(keywords, (m) => `<s-kw>${m}</s-kw>`);
+  // 5단계: 내장 함수
+  const bi = /\b(library|require|print|cat|paste0?|c|list|data\.frame|matrix|vector|length|nrow|ncol|dim|str|summary|head|tail|class|typeof|is\.na|which|seq|rep|mean|median|sd|var|sum|min|max|range|table|subset|merge|rbind|cbind|apply|l?sapply|mapply|do\.call|read\.csv|write\.csv|readRDS|saveRDS|setwd|getwd|ggplot|aes|geom_\w+|facet_\w+|labs|theme\w*|filter|select|mutate|arrange|group_by|summaris[ez]|left_join|right_join|inner_join|full_join|pivot_\w+|rename|pull|slice|distinct|count|matchit|causal_forest|average_treatment_effect|DoubleMLPLR|DoubleMLIRM|lrn)\b/g;
+  out = out.replace(bi, '\x00BI\x01$1\x02');
 
-  // 내장 함수
-  out = out.replace(builtins, (m) => `<s-bi>${m}</s-bi>`);
+  // 6단계: 숫자
+  out = out.replace(/\b(\d+\.?\d*(?:[eE][+-]?\d+)?L?)\b/g, '\x00NUM\x01$1\x02');
 
-  // 숫자
-  out = out.replace(numbers, (m) => `<s-num>${m}</s-num>`);
+  // 7단계: 연산자 (&lt;- 는 이미 escape된 상태)
+  out = out.replace(/(&lt;-|-&gt;|&lt;&lt;-|%&gt;%|\|&gt;|%in%|%\*%|==|!=|&lt;=|&gt;=|&&|\|\||!(?!=)|\+(?!\x00)|-(?!\x00)|\*|\/|\^|::|:(?!:))/g,
+    '\x00OP\x01$1\x02');
 
-  // 연산자
-  out = out.replace(/(&lt;-|-&gt;|&lt;&lt;-|-&gt;&gt;|%&gt;%|\|&gt;|%in%|%\*%|==|!=|&lt;=|&gt;=|&amp;&amp;|\|\||!|\+|-|\*|\/|\^|::|:|~)/g,
-    (m) => `<s-op>${m}</s-op>`);
-
-  // 함수 호출
+  // 8단계: 함수 호출 (괄호 앞 식별자, 아직 마킹 안 된 것)
   out = out.replace(/\b([a-zA-Z_.][a-zA-Z0-9_.]*)(?=\s*\()/g, (m, name) => {
-    if (m.includes('<s-')) return m;
-    return `<s-fn>${name}</s-fn>`;
+    if (m.includes('\x00')) return m;
+    return `\x00FN\x01${name}\x02`;
   });
 
-  // 태그 치환
+  // 9단계: 마커 → span 태그로 치환
   out = out
-    .replace(/<s-str>(.*?)<\/s-str>/gs, '<span class="hl-str">$1</span>')
-    .replace(/<s-cmt>(.*?)<\/s-cmt>/gs, '<span class="hl-cmt">$1</span>')
-    .replace(/<s-kw>(.*?)<\/s-kw>/g,    '<span class="hl-kw">$1</span>')
-    .replace(/<s-bi>(.*?)<\/s-bi>/g,    '<span class="hl-bi">$1</span>')
-    .replace(/<s-num>(.*?)<\/s-num>/g,  '<span class="hl-num">$1</span>')
-    .replace(/<s-op>(.*?)<\/s-op>/g,    '<span class="hl-op">$1</span>')
-    .replace(/<s-fn>(.*?)<\/s-fn>/g,    '<span class="hl-fn">$1</span>');
+    .replace(/\x00CMT\x01([\s\S]*?)\x02/g, '<span class="hl-cmt">$1</span>')
+    .replace(/\x00STR\x01([\s\S]*?)\x02/g, '<span class="hl-str">$1</span>')
+    .replace(/\x00KW\x01(.*?)\x02/g,       '<span class="hl-kw">$1</span>')
+    .replace(/\x00BI\x01(.*?)\x02/g,       '<span class="hl-bi">$1</span>')
+    .replace(/\x00NUM\x01(.*?)\x02/g,      '<span class="hl-num">$1</span>')
+    .replace(/\x00OP\x01(.*?)\x02/g,       '<span class="hl-op">$1</span>')
+    .replace(/\x00FN\x01(.*?)\x02/g,       '<span class="hl-fn">$1</span>');
 
   return out;
 }
