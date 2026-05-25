@@ -363,7 +363,32 @@ kbd {
 }
 .modal-next-btn:hover { background: var(--teal-d); }
 
-/* ── Footer ──────────────────────────────────── */
+/* ── 닉네임 모달 ─────────────────────────────── */
+.nickname-card { max-width: 380px; text-align: left; }
+.nickname-title {
+  font-size: 20px; font-weight: 600; color: var(--mk-white);
+  margin-bottom: 12px;
+}
+.nickname-desc {
+  font-size: 14px; color: var(--text2); line-height: 1.65;
+  margin-bottom: 6px;
+}
+.nickname-tip {
+  display: block; margin-top: 8px; font-size: 13px;
+  color: var(--mk-yellow); line-height: 1.5;
+}
+.nickname-input {
+  width: 100%; padding: 10px 12px; margin: 14px 0 6px;
+  background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: var(--radius); color: var(--mk-white);
+  font-family: var(--sans); font-size: 15px; outline: none;
+  transition: border-color 0.15s;
+}
+.nickname-input:focus { border-color: var(--teal); }
+.nickname-input::placeholder { color: var(--text3); }
+.nickname-error {
+  font-size: 12px; color: var(--mk-pink); margin-bottom: 10px;
+}
 .app-footer {
   display: flex; align-items: center; justify-content: space-between;
   padding: 8px 20px;

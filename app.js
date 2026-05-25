@@ -4,6 +4,12 @@ let currentChapter = 0;
 let currentStep    = 0;
 let allSteps       = [];
 
+// ── 추적 상태 ────────────────────────────────────────────────
+let studentNickname = '';
+let sessionName     = COURSE.title || 'default';
+let stepStartTime   = null;
+let stepAttempts    = {};
+
 function buildStepList() {
   allSteps = [];
   COURSE.chapters.forEach((ch, ci) => {
@@ -118,6 +124,11 @@ function renderStep(ci, si) {
   runBtn.onclick = runCode;
   runBtn.disabled = false;
   runBtn.classList.remove('next-mode');
+
+  // 타이머 리셋
+  stepStartTime = Date.now();
+  const gIdxKey = getCurrentGlobalIdx();
+  if (!stepAttempts[gIdxKey]) stepAttempts[gIdxKey] = 0;
 }
 
 function goStep(globalIdx) {
@@ -250,8 +261,17 @@ async function runCode() {
       status.className   = 'output-status status-ok';
 
       const step = COURSE.chapters[currentChapter].steps[currentStep];
+      const gIdx = getCurrentGlobalIdx();
+      stepAttempts[gIdx] = (stepAttempts[gIdx] || 0) + 1;
+
+      // 시도 이벤트 전송
+      trackEvent('attempt', gIdx, step.title, stepAttempts[gIdx], 0);
+
       if (step.check(out, code)) {
         markAllTasks();
+        const timeSpent = stepStartTime ? (Date.now() - stepStartTime) / 1000 : 0;
+        // 완료 이벤트 전송
+        trackEvent('complete', gIdx, step.title, stepAttempts[gIdx], timeSpent);
         // 실행 버튼 → 다음 단계 버튼으로 교체
         runBtn.textContent = '다음 단계 →';
         runBtn.classList.add('next-mode');
@@ -406,8 +426,50 @@ function unindentLine(el) {
   el.focus(); updateHighlight();
 }
 
+// ── 이벤트 추적 ──────────────────────────────────────────────
+async function trackEvent(eventType, stepIdx, stepTitle, attempt, timeSpent) {
+  if (!studentNickname) return;
+  try {
+    await fetch(`${API_URL}/track`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nickname:    studentNickname,
+        session:     sessionName,
+        step_idx:    stepIdx,
+        step_title:  stepTitle,
+        event_type:  eventType,
+        attempt:     attempt,
+        time_spent:  timeSpent
+      })
+    });
+  } catch(e) { /* 추적 실패는 조용히 무시 */ }
+}
+
+// ── 닉네임 팝업 ──────────────────────────────────────────────
+function showNicknameModal() {
+  document.getElementById('nickname-overlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('nickname-input').focus(), 100);
+}
+
+function submitNickname() {
+  const input = document.getElementById('nickname-input').value.trim();
+  if (!input) {
+    document.getElementById('nickname-error').style.display = 'block';
+    return;
+  }
+  studentNickname = input;
+  document.getElementById('nickname-overlay').style.display = 'none';
+  trackEvent('join', 0, 'session_start', 0, 0);
+}
+
+function handleNicknameKey(e) {
+  if (e.key === 'Enter') submitNickname();
+}
+
 // 시작
 window.addEventListener('load', () => {
   buildStepList();
   renderStep(0, 0);
+  showNicknameModal();
 });
