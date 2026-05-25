@@ -2,7 +2,7 @@
 // 설정 — Render 배포 후 API_URL을 실제 주소로 바꾸세요
 // 예: "https://r-coding-api.onrender.com"
 // ============================================================
-const API_URL = "https://your-api.onrender.com";
+const API_URL = "https://coding-api-enum.onrender.com";
 
 let currentChapter = 0;
 let currentStep    = 0;
