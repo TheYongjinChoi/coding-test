@@ -1,378 +1,157 @@
-/* ── Google Fonts ────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+// ============================================================
+// 수업 내용 편집 파일 — 여기만 수정하면 됩니다
+// check: (out, code) => 정답 조건 (out=출력, code=작성한 코드)
+// hint: 정답 아닐 때 보여줄 힌트 (없으면 null)
+// ============================================================
 
-/* ── 리셋 & 전역 ─────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+const COURSE = {
+  title: "R 코딩 실습",
+  chapters: [
+    {
+      id: 1,
+      title: "기초 문법",
+      color: "#1D9E75",
+      steps: [
+        {
+          title: "변수에 값 저장하기",
+          concept: `R에서는 <code>&lt;-</code> 기호로 변수에 값을 저장해요.<br><br>
+예: <code>x &lt;- 10</code> 은 x에 10을 저장한다는 뜻이에요.<br>
+저장한 값을 보려면 변수 이름만 입력하거나 <code>print(x)</code> 를 쓰면 돼요.`,
+          tasks: [
+            "<code>name</code> 변수에 자신의 이름(문자열)을 저장하세요",
+            "<code>age</code> 변수에 나이(숫자)를 저장하세요",
+            "두 변수를 출력해보세요"
+          ],
+          starter: `# 변수에 값을 저장해보세요\n\n`,
+          check: (out, code) => code.includes('<-') && out.length > 0,
+          hint: null,
+          implication: `변수 할당(<code>&lt;-</code>)은 R의 핵심이에요. Python의 <code>=</code>과 달리 R은 방향성을 명시합니다. 변수에 저장된 값은 이후 분석 파이프라인 전체에서 재사용되며, 이것이 재현 가능한 연구(reproducible research)의 출발점이에요.`,
+          success: "변수 저장 완료! 기초가 탄탄해지고 있어요."
+        },
+        {
+          title: "벡터 만들기",
+          concept: `R의 핵심 자료구조는 <strong>벡터</strong>예요.<br><br>
+<code>c()</code> 함수로 여러 값을 묶을 수 있어요.<br>
+예: <code>scores &lt;- c(85, 90, 78, 92)</code>`,
+          tasks: [
+            "<code>scores</code> 벡터에 숫자 5개를 저장하세요",
+            "<code>length(scores)</code> 로 길이를 확인하세요",
+            "<code>mean(scores)</code> 로 평균을 구해보세요"
+          ],
+          starter: `# 벡터를 만들고 기본 통계를 구해보세요\n\n`,
+          check: (out, code) => code.includes('c(') && code.includes('mean(') && out.length > 0,
+          hint: null,
+          success: "벡터를 자유롭게 다루고 있어요!"
+        }
+      ]
+    },
+    {
+      id: 2,
+      title: "인과추론 기초",
+      color: "#185FA5",
+      steps: [
+        {
+          title: "MatchIt으로 매칭",
+          concept: `<code>MatchIt</code> 패키지로 성향점수 매칭을 할 수 있어요.<br><br>
+<code>matchit(formula, data, method)</code> 로 매칭 객체를 만들고<br>
+<code>summary()</code> 로 결과를 확인해요.`,
+          tasks: [
+            "<code>library(MatchIt)</code> 로 패키지를 불러오세요",
+            "예시 데이터로 <code>matchit()</code> 을 실행하세요",
+            "<code>summary(m.out)</code> 로 결과를 확인하세요"
+          ],
+          starter: `library(MatchIt)
 
-:root {
-  --teal:   #1D9E75;
-  --teal-d: #0F6E56;
-  --teal-l: #1a3a2e;
-  --blue:   #185FA5;
-  --blue-l: #E6F1FB;
+# 예시 데이터
+data(lalonde)
 
-  /* Twilight 기반 다크 배경 */
-  --bg:     #1e2127;
-  --bg2:    #252930;
-  --bg3:    #2d3139;
-  --editor: #1a1d23;
-  --output: #141720;
+# treatment ~ 공변량 으로 매칭
+m.out <- matchit(treat ~ age + educ + race,
+                 data   = lalonde,
+                 method = "nearest")
 
-  --border: rgba(255,255,255,0.08);
-  --border2:rgba(255,255,255,0.15);
-  --text:   #d4d8e0;
-  --text2:  #8b92a0;
-  --text3:  #5c6370;
+`,
+          check: (out, code) => code.includes('matchit(') && out.length > 0,
+          hint: null,
+          success: "매칭 완료! MatchIt을 사용할 수 있어요."
+        },
+        {
+          title: "DoubleML 기초",
+          concept: `<code>DoubleML</code>은 Chernozhukov et al. (2018)의<br>
+Double/Debiased ML을 R로 구현한 패키지예요.<br><br>
+<code>DoubleMLPLR</code>: Partially Linear Regression<br>
+<code>DoubleMLIRM</code>: Interactive Regression Model`,
+          tasks: [
+            "<code>library(DoubleML)</code>, <code>library(mlr3learners)</code> 불러오기",
+            "<code>DoubleMLData</code> 객체 생성하기",
+            "<code>DoubleMLPLR</code> 모델 적합 후 <code>$fit()</code> 실행하기"
+          ],
+          starter: `library(DoubleML)
+library(mlr3)
+library(mlr3learners)
 
-  /* Monokai 하이라이트 색상 */
-  --mk-green:  #a6e22e;
-  --mk-yellow: #e6db74;
-  --mk-orange: #fd971f;
-  --mk-pink:   #f92672;
-  --mk-blue:   #66d9ef;
-  --mk-purple: #ae81ff;
-  --mk-white:  #f8f8f2;
+set.seed(42)
+n <- 500
+X <- matrix(rnorm(n * 5), n, 5)
+d <- X[,1] + rnorm(n)
+y <- 0.5 * d + X[,2] + rnorm(n)
+df <- data.frame(y = y, d = d, X)
 
-  --mono:   'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-  --sans:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --radius: 8px;
-  --radius-lg: 12px;
-}
+# DoubleMLData 객체 생성
+dml_data <- DoubleMLData$new(df,
+  y_col  = "y",
+  d_cols = "d"
+)
 
-html, body { height: 100%; font-family: var(--sans); font-size: 15px; background: var(--bg); color: var(--text); }
+# Learner 설정 (Lasso)
+lrn_l <- lrn("regr.cv_glmnet")
+lrn_m <- lrn("regr.cv_glmnet")
 
-/* ── 로딩 화면 ───────────────────────────────── */
-.loading-screen {
-  position: fixed; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--bg);
-  z-index: 100;
-}
-.loading-inner { text-align: center; width: 320px; }
-.loading-logo {
-  width: 64px; height: 64px; border-radius: 16px;
-  background: var(--teal); color: white;
-  font-size: 28px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 20px;
-  font-family: var(--mono);
-}
-.loading-text { font-size: 17px; font-weight: 500; margin-bottom: 16px; }
-.loading-bar {
-  height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden;
-  margin-bottom: 12px;
-}
-.loading-fill {
-  height: 100%; background: var(--teal);
-  transition: width 0.6s ease; width: 0%;
-}
-.loading-sub { font-size: 14px; color: var(--text3); line-height: 1.5; }
+# PLR 모델
+dml_plr <- DoubleMLPLR$new(dml_data, ml_l = lrn_l, ml_m = lrn_m)
 
-/* ── 앱 레이아웃 ─────────────────────────────── */
-.app { height: 100vh; display: flex; flex-direction: column; }
+`,
+          check: (out, code) => code.includes('DoubleMLPLR') && code.includes('$fit()') || code.includes('dml_plr$fit'),
+          hint: null,
+          success: "DoubleML 실행 성공!"
+        }
+      ]
+    },
+    {
+      id: 3,
+      title: "Causal Forest",
+      color: "#854F0B",
+      steps: [
+        {
+          title: "grf로 Causal Forest",
+          concept: `<code>grf</code> 패키지의 <code>causal_forest()</code>로<br>
+이질적 처치효과(HTE)를 추정할 수 있어요.<br><br>
+<code>average_treatment_effect()</code> 로 ATE를,<br>
+<code>predict()</code> 로 개별 CATE를 구해요.`,
+          tasks: [
+            "<code>library(grf)</code> 불러오기",
+            "<code>causal_forest(X, Y, W)</code> 실행하기",
+            "<code>average_treatment_effect()</code> 로 ATE 확인하기"
+          ],
+          starter: `library(grf)
 
-.main {
-  flex: 1; display: flex; overflow: hidden;
-  min-height: 0;
-}
+set.seed(42)
+n <- 1000
+X <- matrix(rnorm(n * 5), n, 5)
+W <- rbinom(n, 1, 0.5)
+Y <- 2 * W + X[,1] + rnorm(n)
 
-/* ── 왼쪽 패널 ───────────────────────────────── */
-.left-panel {
-  width: 300px; min-width: 300px;
-  display: flex; flex-direction: column;
-  border-right: 0.5px solid var(--border);
-  overflow: hidden;
-}
+# Causal Forest 적합
+cf <- causal_forest(X, Y, W)
 
-.lesson-header {
-  padding: 16px;
-  border-bottom: 0.5px solid var(--border);
-}
-.chapter-badge {
-  font-size: 12px; font-weight: 500;
-  padding: 3px 8px; border-radius: 20px;
-  display: inline-block; margin-bottom: 8px;
-  background: var(--teal-l); color: var(--teal);
-}
-.lesson-title { font-size: 16px; font-weight: 500; line-height: 1.4; color: var(--mk-white); }
+# ATE 추정
 
-.steps-nav {
-  display: flex; flex-wrap: wrap;
-  padding: 10px 16px; gap: 5px;
-  border-bottom: 0.5px solid var(--border);
-}
-.step-dot {
-  width: 26px; height: 26px; border-radius: 50%;
-  border: 0.5px solid var(--border2);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; cursor: pointer; color: var(--text2);
-  transition: all 0.15s;
-}
-.step-dot:hover { background: var(--bg2); }
-.step-dot.active { background: var(--teal); color: white; border-color: var(--teal); font-weight: 500; }
-.step-dot.done   { background: var(--teal-l); color: var(--teal); border-color: var(--teal); }
-
-.mission-body {
-  flex: 1; overflow-y: auto;
-  padding: 16px;
-}
-.mission-section { margin-bottom: 16px; }
-.mission-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--text3); margin-bottom: 6px;
-}
-.mission-text { font-size: 14px; line-height: 1.7; color: var(--text); }
-.mission-text code {
-  font-family: var(--mono); font-size: 13px;
-  background: var(--bg3); padding: 1px 6px;
-  border-radius: 4px; color: var(--mk-green);
-}
-.mission-text pre {
-  background: var(--editor); border: 0.5px solid var(--border);
-  border-radius: var(--radius); padding: 12px 14px;
-  margin-top: 8px; overflow-x: auto;
-}
-.mission-text pre code {
-  background: none; padding: 0; font-size: 13px; color: var(--mk-white);
-}
-.task-box {
-  background: var(--bg2); border-radius: var(--radius);
-  padding: 10px 12px; border: 0.5px solid var(--border);
-}
-.task-item {
-  display: flex; align-items: flex-start; gap: 8px;
-  font-size: 14px; line-height: 1.5;
-  margin-bottom: 8px;
-}
-.task-item:last-child { margin-bottom: 0; }
-.task-check {
-  width: 16px; height: 16px; min-width: 16px; border-radius: 50%;
-  border: 1.5px solid var(--border2); margin-top: 1px;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.task-check.done { background: var(--teal); border-color: var(--teal); color: white; }
-
-.hint-area {
-  padding: 12px 16px;
-  border-top: 0.5px solid var(--border);
-}
-.hint-btn {
-  width: 100%; padding: 8px 12px;
-  border: 0.5px solid var(--border2);
-  border-radius: var(--radius); background: transparent;
-  font-family: var(--sans); font-size: 14px; color: var(--text2);
-  cursor: pointer; transition: all 0.15s;
-}
-.hint-btn:hover { background: var(--bg2); color: var(--text); }
-.hint-bubble {
-  display: none; font-size: 14px; line-height: 1.65;
-  color: var(--text); background: var(--bg2);
-  border-radius: var(--radius); padding: 10px 12px;
-  margin-top: 8px;
-  border-left: 2px solid var(--teal);
-}
-.hint-bubble.visible { display: block; }
-.hint-loading { color: var(--text3); font-style: italic; }
-
-.hint-box {
-  font-size: 13px; line-height: 1.65; color: var(--mk-yellow);
-  background: var(--bg2); border-radius: var(--radius);
-  padding: 10px 12px; border-left: 2px solid var(--mk-orange);
-}
-
-/* ── 개념/할일 텍스트 색상 ───────────────────── */
-.content-text { color: #ffffff; }
-@media (prefers-color-scheme: light) {
-  .content-text { color: #111111; }
-}
-
-/* ── 단축키 구분선 ───────────────────────────── */
-.shortcut-divider {
-  border: none; border-top: 0.5px solid var(--border2);
-  margin: 8px 0 16px;
-}
-
-/* ── 단축키 리스트 ───────────────────────────── */
-.shortcut-list {
-  display: flex; flex-direction: column; gap: 3px;
-}
-.shortcut-group-label {
-  font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--text3);
-  margin-top: 10px; margin-bottom: 4px;
-}
-.shortcut-group-label:first-child { margin-top: 0; }
-.shortcut-item {
-  display: flex; align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px; padding: 3px 0;
-}
-.shortcut-desc {
-  font-size: 12px; color: var(--text2); white-space: nowrap; padding-top: 2px;
-}
-.shortcut-keys {
-  display: flex; flex-direction: column; align-items: flex-end;
-  gap: 2px; flex-shrink: 0;
-}
-.shortcut-keys-row {
-  display: flex; align-items: center; gap: 2px;
-}
-kbd {
-  font-family: var(--mono); font-size: 11px;
-  background: var(--bg3); color: var(--mk-white);
-  border: 0.5px solid var(--border2);
-  border-radius: 4px; padding: 1px 5px;
-  white-space: nowrap;
-}
-
-/* ── 오른쪽 패널 ─────────────────────────────── */
-.right-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-
-.editor-header {
-  padding: 8px 14px;
-  border-bottom: 0.5px solid var(--border);
-  display: flex; align-items: center; justify-content: flex-end;
-}
-.editor-actions { display: flex; gap: 8px; }
-
-.reset-btn {
-  padding: 6px 12px; border: 0.5px solid var(--border2);
-  border-radius: var(--radius); background: transparent;
-  font-family: var(--sans); font-size: 14px; color: var(--text2);
-  cursor: pointer; transition: all 0.15s;
-}
-.reset-btn:hover { background: var(--bg2); }
-
-.run-btn {
-  padding: 6px 16px; background: var(--teal); color: white;
-  border: none; border-radius: var(--radius);
-  font-family: var(--sans); font-size: 14px; font-weight: 500;
-  cursor: pointer; transition: background 0.15s;
-}
-.run-btn:hover { background: var(--teal-d); }
-.run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.run-btn.next-mode { background: #185FA5; }
-.run-btn.next-mode:hover { background: #0c447c; }
-
-.editor-wrap {
-  flex: 1; min-height: 0; position: relative; overflow: hidden;
-}
-
-#hl-layer {
-  position: absolute; inset: 0;
-  font-family: var(--mono); font-size: 14px; line-height: 1.7;
-  padding: 16px 18px; margin: 0;
-  background: var(--editor);
-  color: var(--mk-white);
-  white-space: pre-wrap; word-wrap: break-word;
-  overflow: hidden; pointer-events: none;
-  tab-size: 2;
-}
-
-#code-editor {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  border: none; outline: none; resize: none;
-  font-family: var(--mono); font-size: 14px; line-height: 1.7;
-  padding: 16px 18px;
-  background: transparent; color: transparent;
-  caret-color: var(--mk-orange);
-  tab-size: 2; z-index: 1;
-  white-space: pre-wrap; word-wrap: break-word;
-  overflow-y: auto;
-}
-
-/* ── Monokai R 하이라이트 ────────────────────── */
-.hl-kw  { color: #f92672; font-weight: 500; }
-.hl-bi  { color: #66d9ef; }
-.hl-fn  { color: #a6e22e; }
-.hl-str { color: #e6db74; }
-.hl-num { color: #ae81ff; }
-.hl-op  { color: #f92672; }
-.hl-cmt { color: #75715e; font-style: italic; }
-
-.output-panel {
-  height: 160px; border-top: 0.5px solid var(--border);
-  display: flex; flex-direction: column;
-}
-.output-header {
-  padding: 6px 14px;
-  border-bottom: 0.5px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-}
-.output-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
-  text-transform: uppercase; color: var(--text3);
-}
-.output-status { font-size: 13px; }
-.status-ok  { color: var(--mk-green); }
-.status-err { color: var(--mk-pink); }
-
-.output-body {
-  flex: 1; padding: 10px 14px; overflow-y: auto;
-  font-family: var(--mono); font-size: 13px; line-height: 1.7;
-  background: var(--output);
-}
-.output-placeholder { color: var(--text3); }
-.out-ok  { color: var(--mk-white); white-space: pre-wrap; }
-.out-err { color: var(--mk-pink);  white-space: pre-wrap; }
-
-/* ── 모달 ────────────────────────────────────── */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.7);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 50;
-}
-.modal-card {
-  background: var(--bg2); border: 0.5px solid var(--border2);
-  border-radius: var(--radius-lg); padding: 32px 40px;
-  text-align: center; min-width: 320px; max-width: 520px;
-}
-.modal-icon {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: var(--teal-l); color: var(--teal);
-  font-size: 22px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 12px;
-}
-.modal-title { font-size: 18px; font-weight: 500; margin-bottom: 14px; color: var(--mk-white); }
-.modal-impl  {
-  font-size: 14px; line-height: 1.7; color: var(--text);
-  text-align: left; background: var(--bg3);
-  border-radius: var(--radius); padding: 14px 16px;
-  margin-bottom: 16px; border-left: 2px solid var(--teal);
-}
-.modal-impl code {
-  font-family: var(--mono); font-size: 13px;
-  background: var(--editor); color: var(--mk-green);
-  padding: 1px 5px; border-radius: 3px;
-}
-.modal-sub   { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
-.modal-next-btn {
-  padding: 8px 24px; background: var(--teal); color: white;
-  border: none; border-radius: var(--radius);
-  font-family: var(--sans); font-size: 15px; font-weight: 500;
-  cursor: pointer;
-}
-.modal-next-btn:hover { background: var(--teal-d); }
-
-/* ── Footer ──────────────────────────────────── */
-.app-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 20px;
-  border-top: 0.5px solid var(--border);
-  background: var(--bg2);
-  font-size: 12px; color: var(--text3);
-  flex-shrink: 0;
-}
-.footer-left { display: flex; align-items: center; gap: 10px; }
-.footer-dev  { color: var(--text2); font-weight: 500; }
-.footer-affil { color: var(--text3); }
-.footer-email {
-  color: var(--teal); text-decoration: none;
-}
-.footer-email:hover { text-decoration: underline; }
-.footer-right { color: var(--text3); font-size: 11px; }
+`,
+          check: (out, code) => code.includes('causal_forest(') && code.includes('average_treatment_effect(') && out.length > 0,
+          hint: null,
+          success: "Causal Forest 완료! CATE 추정까지 해봤어요."
+        }
+      ]
+    }
+  ]
+};
