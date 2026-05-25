@@ -119,7 +119,8 @@ async function runCode() {
     const data = await res.json();
 
     if (data.success) {
-      const out = (data.output || '').trim();
+      const raw = data.output;
+      const out = (Array.isArray(raw) ? raw.join('\n') : String(raw || '')).trim();
       outEl.innerHTML = out
         ? `<span class="out-ok">${escHtml(out)}</span>`
         : `<span class="out-ok">(출력 없음 — print()로 확인해보세요)</span>`;
