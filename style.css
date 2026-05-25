@@ -269,6 +269,8 @@ kbd {
   white-space: pre-wrap; word-wrap: break-word;
   overflow: hidden; pointer-events: none;
   tab-size: 2;
+  font-variant-ligatures: none;
+  -webkit-font-variant-ligatures: none;
 }
 
 #code-editor {
@@ -282,6 +284,8 @@ kbd {
   tab-size: 2; z-index: 1;
   white-space: pre-wrap; word-wrap: break-word;
   overflow-y: auto;
+  font-variant-ligatures: none;
+  -webkit-font-variant-ligatures: none;
 }
 
 /* ── Monokai R 하이라이트 ────────────────────── */
