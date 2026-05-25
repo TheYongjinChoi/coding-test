@@ -253,16 +253,45 @@ kbd {
 .run-btn:hover { background: var(--teal-d); }
 .run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.editor-wrap { flex: 1; min-height: 0; }
+.run-btn.next-mode { background: #185FA5; }
+.run-btn.next-mode:hover { background: #0c447c; }
+
+.editor-wrap {
+  flex: 1; min-height: 0; position: relative; overflow: hidden;
+}
+
+#hl-layer {
+  position: absolute; inset: 0;
+  font-family: var(--mono); font-size: 14px; line-height: 1.7;
+  padding: 16px 18px; margin: 0;
+  background: var(--editor);
+  color: var(--mk-white);
+  white-space: pre-wrap; word-wrap: break-word;
+  overflow: hidden; pointer-events: none;
+  tab-size: 2;
+}
 
 #code-editor {
+  position: absolute; inset: 0;
   width: 100%; height: 100%;
   border: none; outline: none; resize: none;
   font-family: var(--mono); font-size: 14px; line-height: 1.7;
   padding: 16px 18px;
-  background: var(--editor); color: var(--mk-white);
-  tab-size: 2; caret-color: var(--mk-orange);
+  background: transparent; color: transparent;
+  caret-color: var(--mk-orange);
+  tab-size: 2; z-index: 1;
+  white-space: pre-wrap; word-wrap: break-word;
+  overflow-y: auto;
 }
+
+/* ── Monokai R 하이라이트 ────────────────────── */
+.hl-kw  { color: #f92672; font-weight: 500; }
+.hl-bi  { color: #66d9ef; }
+.hl-fn  { color: #a6e22e; }
+.hl-str { color: #e6db74; }
+.hl-num { color: #ae81ff; }
+.hl-op  { color: #f92672; }
+.hl-cmt { color: #75715e; font-style: italic; }
 
 .output-panel {
   height: 160px; border-top: 0.5px solid var(--border);
@@ -300,7 +329,7 @@ kbd {
 .modal-card {
   background: var(--bg2); border: 0.5px solid var(--border2);
   border-radius: var(--radius-lg); padding: 32px 40px;
-  text-align: center; min-width: 280px;
+  text-align: center; min-width: 320px; max-width: 520px;
 }
 .modal-icon {
   width: 48px; height: 48px; border-radius: 50%;
@@ -309,7 +338,18 @@ kbd {
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 12px;
 }
-.modal-title { font-size: 18px; font-weight: 500; margin-bottom: 6px; color: var(--mk-white); }
+.modal-title { font-size: 18px; font-weight: 500; margin-bottom: 14px; color: var(--mk-white); }
+.modal-impl  {
+  font-size: 14px; line-height: 1.7; color: var(--text);
+  text-align: left; background: var(--bg3);
+  border-radius: var(--radius); padding: 14px 16px;
+  margin-bottom: 16px; border-left: 2px solid var(--teal);
+}
+.modal-impl code {
+  font-family: var(--mono); font-size: 13px;
+  background: var(--editor); color: var(--mk-green);
+  padding: 1px 5px; border-radius: 3px;
+}
 .modal-sub   { font-size: 14px; color: var(--text2); margin-bottom: 20px; }
 .modal-next-btn {
   padding: 8px 24px; background: var(--teal); color: white;
@@ -318,3 +358,21 @@ kbd {
   cursor: pointer;
 }
 .modal-next-btn:hover { background: var(--teal-d); }
+
+/* ── Footer ──────────────────────────────────── */
+.app-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 20px;
+  border-top: 0.5px solid var(--border);
+  background: var(--bg2);
+  font-size: 12px; color: var(--text3);
+  flex-shrink: 0;
+}
+.footer-left { display: flex; align-items: center; gap: 10px; }
+.footer-dev  { color: var(--text2); font-weight: 500; }
+.footer-affil { color: var(--text3); }
+.footer-email {
+  color: var(--teal); text-decoration: none;
+}
+.footer-email:hover { text-decoration: underline; }
+.footer-right { color: var(--text3); font-size: 11px; }
