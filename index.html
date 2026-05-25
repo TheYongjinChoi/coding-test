@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>R 코딩 실습실</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/webr/dist/webr.js"></script>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- 로딩 화면 -->
+  <div class="loading-screen" id="loading-screen">
+    <div class="loading-inner">
+      <div class="loading-logo">R</div>
+      <div class="loading-text">R 엔진 초기화 중...</div>
+      <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+      <div class="loading-sub" id="loading-sub">WebR 패키지를 불러오고 있어요 (최초 1회, 약 10~20초)</div>
+    </div>
+  </div>
+
+  <!-- 메인 레이아웃 -->
+  <div class="main" id="main" style="display:none;">
+
+    <!-- 왼쪽 패널 -->
+    <div class="left-panel">
+
+      <div class="lesson-header">
+        <div class="chapter-badge" id="chapter-badge">Chapter 1 · 기초</div>
+        <div class="lesson-title" id="lesson-title">로딩 중...</div>
+      </div>
+
+      <div class="steps-nav" id="steps-nav"></div>
+
+      <div class="mission-body" id="mission-body"></div>
+
+      <div class="hint-area">
+        <button class="hint-btn" id="hint-btn" onclick="getHint()">
+          💡 AI 힌트 받기
+        </button>
+        <div class="hint-bubble" id="hint-bubble"></div>
+      </div>
+
+    </div>
+
+    <!-- 오른쪽 패널 -->
+    <div class="right-panel">
+
+      <div class="editor-header">
+        <div class="file-tab">📄 script.R</div>
+        <div class="editor-actions">
+          <button class="reset-btn" onclick="resetCode()">초기화</button>
+          <button class="run-btn" id="run-btn" onclick="runCode()">▶ 실행</button>
+        </div>
+      </div>
+
+      <div class="editor-wrap">
+        <textarea id="code-editor" spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
+      </div>
+
+      <div class="output-panel">
+        <div class="output-header">
+          <span class="output-label">출력</span>
+          <span class="output-status" id="output-status"></span>
+        </div>
+        <div class="output-body" id="output-body">
+          <span class="output-placeholder">코드를 실행하면 결과가 여기에 나타나요.</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- 성공 모달 -->
+  <div class="modal-overlay" id="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-icon">✓</div>
+      <div class="modal-title" id="modal-title">정답이에요!</div>
+      <div class="modal-sub" id="modal-sub">다음 단계로 넘어가볼까요?</div>
+      <button class="modal-next-btn" onclick="nextStep()">다음 →</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="lessons.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
