@@ -25,8 +25,8 @@ function getCurrentGlobalIdx() {
   );
 }
 
-// ── 스텝 렌더 ────────────────────────────────────────────────
-function renderStep(ci, si) {
+// ── 스텝 렌더 (비동기 fetch 적용) ──────────────────────────────
+async function renderStep(ci, si) {
   currentChapter = ci;
   currentStep    = si;
 
@@ -68,7 +68,7 @@ function renderStep(ci, si) {
         ${step.tasks.map((t, ti) => `
           <div class="task-item">
             <div class="task-check" id="task-check-${ti}"></div>
-            <span class="content-text">${t}</span>
+            <span class="content-text">${formatTaskText(t)}</span>
           </div>`).join('')}
       </div>
     </div>
@@ -98,19 +98,40 @@ function renderStep(ci, si) {
     </div>
   `;
 
-  // 에디터 초기화
+  // 에디터 초기화 및 로딩 문구 설정
   const editorEl = document.getElementById('code-editor-wrap');
   editorEl.innerHTML = '';
   const textarea = document.createElement('textarea');
   textarea.id = 'code-editor';
   textarea.spellcheck = false;
   textarea.autocomplete = 'off';
-  textarea.value = step.starter;
+  textarea.value = "# R 코드를 서버에서 불러오는 중..."; // 임시 로딩 메시지
   editorEl.appendChild(textarea);
 
-  // 하이라이트 초기화
+  // 하이라이트 및 단축키 초기화
   initHighlight();
   setupShortcuts();
+
+  // ⭐️ [핵심 추가] 외부 R 파일 비동기로 읽어와 주입하기
+  try {
+    if (step.starter_path) {
+      const response = await fetch(step.starter_path);
+      if (!response.ok) {
+        throw new Error(`파일을 찾을 수 없습니다. (Status: ${response.status})`);
+      }
+      const rCode = await response.text();
+      textarea.value = rCode;
+    } else {
+      // 호환성을 위해 기존 starter 문자열 방식도 남겨둡니다.
+      textarea.value = step.starter || '';
+    }
+  } catch (error) {
+    console.error("R 실습 코드 로드 실패:", error);
+    textarea.value = `# [오류] R 실습 코드를 불러오지 못했습니다.\n# 경로를 확인해주세요: ${step.starter_path}`;
+  }
+
+  // 코드가 로드된 후 하이라이트 한 번 더 갱신
+  updateHighlight();
 
   document.getElementById('output-body').innerHTML =
     '<span class="output-placeholder">코드를 실행하면 결과가 여기에 나타나요.</span>';
@@ -136,11 +157,25 @@ function goStep(globalIdx) {
   renderStep(s.chapterIdx, s.stepIdx);
 }
 
-function resetCode() {
+// ── 코드 초기화 (비동기 fetch 적용) ──────────────────────────
+async function resetCode() {
   const step = COURSE.chapters[currentChapter].steps[currentStep];
   const editor = document.getElementById('code-editor');
   if (editor) {
-    editor.value = step.starter;
+    editor.value = "# 코드를 다시 불러오는 중...";
+    updateHighlight();
+
+    try {
+      if (step.starter_path) {
+        const response = await fetch(step.starter_path);
+        if (!response.ok) throw new Error();
+        editor.value = await response.text();
+      } else {
+        editor.value = step.starter || '';
+      }
+    } catch (e) {
+      editor.value = `# [오류] 초기화 실패 — 경로를 확인하세요: ${step.starter_path}`;
+    }
     updateHighlight();
   }
 }
@@ -181,41 +216,30 @@ function updateHighlight() {
 }
 
 function highlightR(code) {
-  // 1단계: HTML escape 먼저
   let out = code
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // 2단계: 주석 (다른 패턴보다 먼저 — 줄 끝까지)
   out = out.replace(/(#[^\n]*)/g, '\x00CMT\x01$1\x02');
+  out = out.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, '\x00STR\x01$1\x02');
 
-  // 3단계: 문자열 (" ' ` )
-  out = out.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
-    '\x00STR\x01$1\x02');
-
-  // 4단계: 키워드 (단어 경계)
   const kw = /\b(if|else|for|while|repeat|break|next|return|function|in|TRUE|FALSE|NULL|NA|NaN|Inf|T|F)\b/g;
   out = out.replace(kw, '\x00KW\x01$1\x02');
 
-  // 5단계: 내장 함수
   const bi = /\b(library|require|print|cat|paste0?|c|list|data\.frame|matrix|vector|length|nrow|ncol|dim|str|summary|head|tail|class|typeof|is\.na|which|seq|rep|mean|median|sd|var|sum|min|max|range|table|subset|merge|rbind|cbind|apply|l?sapply|mapply|do\.call|read\.csv|write\.csv|readRDS|saveRDS|setwd|getwd|ggplot|aes|geom_\w+|facet_\w+|labs|theme\w*|filter|select|mutate|arrange|group_by|summaris[ez]|left_join|right_join|inner_join|full_join|pivot_\w+|rename|pull|slice|distinct|count|matchit|causal_forest|average_treatment_effect|DoubleMLPLR|DoubleMLIRM|lrn)\b/g;
   out = out.replace(bi, '\x00BI\x01$1\x02');
 
-  // 6단계: 숫자
-  out = out.replace(/\b(\d+\.?\d*(?:[eE][+-]?\d+)?L?)\b/g, '\x00NUM\x01$1\x02');
+  // 숫자 하이라이트: 이미 마킹된 토큰(주석·문자열 등) 안의 숫자는 건드리지 않음
+  out = out.replace(/(\x00[A-Z]+\x01[\s\S]*?\x02)|\b(\d+\.?\d*(?:[eE][+-]?\d+)?L?)\b/g,
+    (m, token, num) => token ? token : '\x00NUM\x01' + num + '\x02');
+  out = out.replace(/(&lt;-|-&gt;|&lt;&lt;-|%&gt;%|\|&gt;|%in%|%\*%|==|!=|&lt;=|&gt;=|&&|\|\||!(?!=)|\+(?!\x00)|-(?!\x00)|\*|\/|\^|::|:(?!:))/g, '\x00OP\x01$1\x02');
 
-  // 7단계: 연산자 (&lt;- 는 이미 escape된 상태)
-  out = out.replace(/(&lt;-|-&gt;|&lt;&lt;-|%&gt;%|\|&gt;|%in%|%\*%|==|!=|&lt;=|&gt;=|&&|\|\||!(?!=)|\+(?!\x00)|-(?!\x00)|\*|\/|\^|::|:(?!:))/g,
-    '\x00OP\x01$1\x02');
-
-  // 8단계: 함수 호출 (괄호 앞 식별자, 아직 마킹 안 된 것)
   out = out.replace(/\b([a-zA-Z_.][a-zA-Z0-9_.]*)(?=\s*\()/g, (m, name) => {
     if (m.includes('\x00')) return m;
     return `\x00FN\x01${name}\x02`;
   });
 
-  // 9단계: 마커 → span 태그로 치환
   out = out
     .replace(/\x00CMT\x01([\s\S]*?)\x02/g, '<span class="hl-cmt">$1</span>')
     .replace(/\x00STR\x01([\s\S]*?)\x02/g, '<span class="hl-str">$1</span>')
@@ -254,9 +278,36 @@ async function runCode() {
     if (data.success) {
       const raw = data.output;
       const out = (Array.isArray(raw) ? raw.join('\n') : String(raw || '')).trim();
-      outEl.innerHTML = out
-        ? `<span class="out-ok">${escHtml(out)}</span>`
-        : `<span class="out-ok">(출력 없음 — print()로 확인해보세요)</span>`;
+      
+      // ── 📊 그래프 표시용 HTML 엘리먼트 가져오기 ──
+      const plotWrap = document.getElementById('output-plot-wrap');
+      const plotImg  = document.getElementById('output-plot');
+
+      // ⭐️ [트릭 감지] 콘솔 출력물에 그래프 데이터가 숨겨져 있는지 확인
+      if (out.includes("|||PLOT_START|||")) {
+        const parts = out.split("|||PLOT_START|||");
+        const consoleText = parts[0].trim(); // 마커 앞쪽의 순수 텍스트 결과
+        const base64Data  = parts[1].split("|||PLOT_END|||")[0].trim(); // 마커 안쪽의 이미지 데이터
+
+        // 1. 텍스트 결과 창에 출력
+        outEl.innerHTML = consoleText
+          ? `<span class="out-ok">${escHtml(consoleText)}</span>`
+          : `<span class="out-ok">✓ 실행 완료 (그래프가 아래에 표시됩니다)</span>`;
+
+        // 2. 숨겨진 이미지를 복원해서 띄우기
+        if (plotWrap && plotImg) {
+          plotImg.src = "data:image/png;base64," + base64Data;
+          plotWrap.style.display = "block"; // 숨겨져 있던 그래프 상자 노출
+        }
+      } else {
+        // 그래프 데이터가 없는 일반 코드일 때는 이미지 상자를 깔끔하게 숨김
+        if (plotWrap) plotWrap.style.display = "none";
+        
+        outEl.innerHTML = out
+          ? `<span class="out-ok">${escHtml(out)}</span>`
+          : `<span class="out-ok">(출력 없음 — print()로 확인해보세요)</span>`;
+      }
+
       status.textContent = '✓ 실행 완료';
       status.className   = 'output-status status-ok';
 
@@ -264,15 +315,12 @@ async function runCode() {
       const gIdx = getCurrentGlobalIdx();
       stepAttempts[gIdx] = (stepAttempts[gIdx] || 0) + 1;
 
-      // 시도 이벤트 전송
       trackEvent('attempt', gIdx, step.title, stepAttempts[gIdx], 0);
 
       if (step.check(out, code)) {
         markAllTasks();
         const timeSpent = stepStartTime ? (Date.now() - stepStartTime) / 1000 : 0;
-        // 완료 이벤트 전송
         trackEvent('complete', gIdx, step.title, stepAttempts[gIdx], timeSpent);
-        // 실행 버튼 → 다음 단계 버튼으로 교체
         runBtn.textContent = '다음 단계 →';
         runBtn.classList.add('next-mode');
         runBtn.onclick  = () => showImplication(step);
@@ -282,6 +330,10 @@ async function runCode() {
         runBtn.disabled    = false;
       }
     } else {
+      // 에러가 났을 때도 혹시 남아있을지 모를 이전 그래프는 숨겨줍니다.
+      const plotWrap = document.getElementById('output-plot-wrap');
+      if (plotWrap) plotWrap.style.display = "none";
+
       outEl.innerHTML    = `<span class="out-err">${escHtml(data.error || '알 수 없는 오류')}</span>`;
       status.textContent = '✗ 오류';
       status.className   = 'output-status status-err';
@@ -290,6 +342,10 @@ async function runCode() {
     }
 
   } catch (e) {
+    // 연결 실패 시에도 이미지 상자는 숨김
+    const plotWrap = document.getElementById('output-plot-wrap');
+    if (plotWrap) plotWrap.style.display = "none";
+
     outEl.innerHTML    = `<span class="out-err">서버 연결 실패 — API_URL을 확인해주세요.\n${escHtml(String(e))}</span>`;
     status.textContent = '✗ 연결 오류';
     status.className   = 'output-status status-err';
@@ -308,6 +364,10 @@ function markAllTasks() {
   });
 }
 
+function formatTaskText(text) {
+  return text.replace(/`([^`]+)`/g, '<code style="background: #2d2d2d; padding: 2px 4px; border-radius: 4px; color: #ff79c6; font-family: monospace;">$1</code>');
+}
+
 // ── 함의 모달 ────────────────────────────────────────────────
 function showImplication(step) {
   const gIdx   = getCurrentGlobalIdx();
@@ -319,13 +379,25 @@ function showImplication(step) {
   document.getElementById('modal-sub').textContent     = isLast ? '모든 실습을 완료했어요! 🎉' : '';
   document.querySelector('.modal-next-btn').textContent = isLast ? '완료' : '다음 단계 →';
   document.getElementById('modal-overlay').style.display = 'flex';
+
+  if (window.MathJax) {
+    MathJax.typesetPromise();
+  }
 }
 
 function nextStep() {
+  // 1. 모달 닫기 (closeModal 함수가 정의되어 있다면 호출)
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // 2. 실습 단계 이동 로직
   const gIdx = getCurrentGlobalIdx();
-  document.getElementById('modal-overlay').style.display = 'none';
+  
   if (gIdx < allSteps.length - 1) {
-    goStep(gIdx + 1);
+    goStep(gIdx + 1); // 실제 다음 단계로 이동하는 함수
+    console.log("다음 단계로 이동합니다.");
+  } else {
+    console.log("마지막 단계입니다.");
   }
 }
 
@@ -467,9 +539,29 @@ function handleNicknameKey(e) {
   if (e.key === 'Enter') submitNickname();
 }
 
-// 시작
+// ── 테마 전환 ────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  const btn = document.getElementById('theme-btn');
+  if (btn) {
+    btn.innerHTML = theme === 'dark'
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> 라이트 모드'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> 다크 모드';
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// ── 시작 ─────────────────────────────────────────────────────
 window.addEventListener('load', () => {
+  const savedTheme = localStorage.getItem('theme') || 'dark';
+  applyTheme(savedTheme);
+
   buildStepList();
   renderStep(0, 0);
-  showNicknameModal();
+  // showNicknameModal();  ← 닉네임 기능 비활성화 중
 });
