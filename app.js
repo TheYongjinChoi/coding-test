@@ -121,14 +121,13 @@ async function renderStep(idx) {
   document.getElementById("modal-overlay").style.display = "none";
 
   const runBtn = document.getElementById("run-btn");
-  runBtn.textContent = "▶ 실행";
-  runBtn.onclick = runCode;
+  runBtn.textContent = "▶ 전체 실행";
+  runBtn.onclick = () => runCode("all");
   runBtn.disabled = false;
   runBtn.classList.remove("next-mode");
 
   // 이미 완료한 단계라면 바로 다음으로 넘어갈 수 있게 표시
   if (sessionProgress(SESSION_ID).done.includes(idx) && idx < allSteps.length - 1) {
-    runBtn.textContent = "▶ 실행";
     document.getElementById("mission-body").insertAdjacentHTML("afterbegin",
       `<div class="notice done-notice">이미 완료한 단계입니다.
          <button class="link-btn" onclick="goStep(${idx + 1})">다음 단계로 이동 →</button></div>`);
@@ -195,7 +194,7 @@ function renderMission(step) {
     <div class="mission-section">
       <div class="mission-label">${isFill ? "채워야 할 빈칸" : "할 일"}</div>
       <div class="task-box">${tasksHtml}</div>
-      ${isFill ? `<div class="task-note">빈칸을 모두 정확히 채워야 다음 단계가 열립니다.</div>` : ""}
+      ${isFill ? `<div class="task-note">빈칸을 모두 정확히 채워야 다음 단계가 열립니다.<br>중간 확인은 <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>(현재 줄만 실행), 채점은 <b>전체 실행</b>입니다.</div>` : ""}
     </div>
 
     <div class="mission-section" id="feedback-section" style="display:none;">
@@ -218,7 +217,8 @@ function renderMission(step) {
         <div class="shortcut-item"><span class="shortcut-desc">파이프 %&gt;%</span><span class="shortcut-keys"><span class="shortcut-keys-row"><kbd>Ctrl</kbd><kbd>⇧</kbd><kbd>M</kbd></span><span class="shortcut-keys-row"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>M</kbd></span></span></div>
         <div class="shortcut-item"><span class="shortcut-desc">들여쓰기 / 내어쓰기</span><span class="shortcut-keys"><span class="shortcut-keys-row"><kbd>Tab</kbd><kbd>⇧</kbd><kbd>Tab</kbd></span></span></div>
         <div class="shortcut-group-label">실행</div>
-        <div class="shortcut-item"><span class="shortcut-desc">전체 실행</span><span class="shortcut-keys"><span class="shortcut-keys-row"><kbd>Ctrl</kbd><kbd>Enter</kbd></span><span class="shortcut-keys-row"><kbd>⌘</kbd><kbd>Enter</kbd></span></span></div>
+        <div class="shortcut-item"><span class="shortcut-desc">현재 줄 실행 (채점 안 함)</span><span class="shortcut-keys"><span class="shortcut-keys-row"><kbd>Ctrl</kbd><kbd>Enter</kbd></span><span class="shortcut-keys-row"><kbd>⌘</kbd><kbd>Enter</kbd></span></span></div>
+        <div class="shortcut-item"><span class="shortcut-desc">전체 실행 + 채점</span><span class="shortcut-keys"><span class="shortcut-keys-row"><kbd>Ctrl</kbd><kbd>⇧</kbd><kbd>Enter</kbd></span><span class="shortcut-keys-row"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>Enter</kbd></span></span></div>
         <div class="shortcut-group-label">편집</div>
         <div class="shortcut-item"><span class="shortcut-desc">주석 토글</span><span class="shortcut-keys"><span class="shortcut-keys-row"><kbd>Ctrl</kbd><kbd>⇧</kbd><kbd>C</kbd></span><span class="shortcut-keys-row"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></span></span></div>
         <div class="shortcut-item"><span class="shortcut-desc">줄 삭제 / 복제</span><span class="shortcut-keys"><span class="shortcut-keys-row"><kbd>Ctrl</kbd><kbd>D</kbd></span><span class="shortcut-keys-row"><kbd>Ctrl</kbd><kbd>⇧</kbd><kbd>D</kbd></span></span></div>
@@ -249,23 +249,42 @@ async function resetCode() {
 /* ══════════════════════════════════════════════════════════
    실행 + 채점
 ══════════════════════════════════════════════════════════ */
-async function runCode() {
+/* mode = "all"      → 전체 실행 + 채점 (실행 버튼, Ctrl/Cmd + Shift + Enter)
+   mode = "fragment" → 선택 영역 또는 커서가 있는 줄만 실행, 채점하지 않음
+                       (Ctrl/Cmd + Enter — RStudio·Positron과 같은 동작) */
+async function runCode(mode = "all") {
   const editor = document.getElementById("code-editor");
-  const code   = editor ? editor.value : "";
   const outEl  = document.getElementById("output-body");
   const runBtn = document.getElementById("run-btn");
   const { step } = allSteps[currentIdx];
+  if (!editor) return;
+
+  const partial = mode === "fragment";
+  let code = editor.value;
+
+  if (partial) {
+    const frag = getRunFragment(editor);
+    code = frag.text;
+    if (!code.trim()) return;
+    // RStudio처럼 실행한 줄 다음으로 커서를 옮깁니다.
+    editor.selectionStart = editor.selectionEnd = frag.end;
+    syncScroll();
+  }
 
   if (!code.trim()) return;
 
   if (code.includes("_____")) {
-    outEl.innerHTML = `<span class="out-err">빈칸(_____)이 아직 남아 있습니다. 왼쪽 목록을 보고 모두 채운 뒤 실행하세요.</span>`;
+    outEl.innerHTML = `<span class="out-err">${partial
+      ? "실행하려는 줄에 빈칸(_____)이 남아 있습니다."
+      : "빈칸(_____)이 아직 남아 있습니다. 왼쪽 목록을 보고 모두 채운 뒤 실행하세요."}</span>`;
     setStatus("✗ 빈칸 남음", "status-err");
     return;
   }
 
+  const prevLabel = runBtn.textContent;
+  const prevClick = runBtn.onclick;
   runBtn.disabled = true;
-  runBtn.textContent = "실행 중...";
+  runBtn.textContent = partial ? "부분 실행 중..." : "실행 중...";
   outEl.innerHTML = '<span class="output-placeholder">R 서버에서 실행 중...</span>';
   document.getElementById("output-plots").innerHTML = "";
   setStatus("", "");
@@ -283,7 +302,9 @@ async function runCode() {
   } catch (e) {
     outEl.innerHTML = `<span class="out-err">서버 연결 실패 — API_URL을 확인해주세요.\n${escHtml(String(e))}</span>`;
     setStatus("✗ 연결 오류", "status-err");
-    runBtn.disabled = false; runBtn.textContent = "▶ 실행";
+    runBtn.disabled = false;
+    runBtn.textContent = prevLabel;
+    runBtn.onclick = prevClick;
     return;
   }
 
@@ -292,10 +313,21 @@ async function runCode() {
 
   if (!data.success) {
     setStatus("✗ 오류", "status-err");
-    runBtn.disabled = false; runBtn.textContent = "▶ 실행";
-    trackEvent("attempt", step, false);
+    runBtn.disabled = false; runBtn.textContent = prevLabel;
+    runBtn.onclick = prevClick;
+    if (!partial) trackEvent("attempt", step, false);
     return;
   }
+
+  // 부분 실행은 결과만 보여 주고 채점하지 않습니다.
+  if (partial) {
+    setStatus("✓ 부분 실행 완료", "status-ok");
+    runBtn.disabled = false;
+    runBtn.textContent = prevLabel;
+    runBtn.onclick = prevClick;
+    return;
+  }
+
   setStatus("✓ 실행 완료", "status-ok");
 
   const result = await grade(step, code, data.output || "");
@@ -312,8 +344,9 @@ async function runCode() {
     runBtn.classList.add("next-mode");
     runBtn.onclick = () => showImplication(step);
   } else {
-    runBtn.textContent = "▶ 실행";
-    runBtn.onclick = runCode;
+    runBtn.textContent = "▶ 전체 실행";
+    runBtn.classList.remove("next-mode");
+    runBtn.onclick = () => runCode("all");
   }
   runBtn.disabled = false;
 }
@@ -421,10 +454,23 @@ function renderOutput(data) {
 ══════════════════════════════════════════════════════════ */
 function showImplication(step) {
   const isLast = currentIdx === allSteps.length - 1;
-  document.getElementById("modal-title").textContent = step.success || "완료했습니다.";
-  document.getElementById("modal-impl").innerHTML    = step.implication || "";
-  document.getElementById("modal-sub").textContent   =
-    isLast ? "이 세션의 모든 단계를 마쳤습니다. 실습 목록으로 돌아갑니다." : "";
+  const impl   = (step.implication || "").trim();
+  const next   = isLast ? null : allSteps[currentIdx + 1].step;
+
+  document.getElementById("modal-title").textContent =
+    step.success || "완료했습니다. 다음 단계로 넘어가세요.";
+
+  // 내용이 없으면 빈 상자가 남지 않도록 아예 숨깁니다.
+  const implEl = document.getElementById("modal-impl");
+  implEl.innerHTML = impl;
+  implEl.style.display = impl ? "block" : "none";
+
+  const subEl = document.getElementById("modal-sub");
+  subEl.textContent = isLast
+    ? "이 세션의 모든 단계를 마쳤습니다. 실습 목록으로 돌아갑니다."
+    : `다음 단계 — ${next.title}`;
+  subEl.style.display = "block";
+
   document.getElementById("modal-next-btn").textContent = isLast ? "실습 목록으로 →" : "다음 단계 →";
   document.getElementById("modal-overlay").style.display = "flex";
   if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
@@ -461,7 +507,45 @@ function escHtml(str) {
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/* 주석·공백을 없애고 소수점 표기를 통일해 비교합니다. */
+/* ── 부분 실행 대상 찾기 ──────────────────────────────────────
+   선택 영역이 있으면 그대로, 없으면 커서가 놓인 줄을 실행합니다.
+   괄호가 열려 있거나 연산자로 끝나면 문장이 끝날 때까지 아래 줄을 붙입니다. */
+function getRunFragment(el) {
+  if (el.selectionStart !== el.selectionEnd) {
+    return { text: el.value.slice(el.selectionStart, el.selectionEnd), end: el.selectionEnd };
+  }
+  const lines = el.value.split("\n");
+  let pos = 0, idx = lines.length - 1;
+  for (let i = 0; i < lines.length; i++) {
+    if (pos + lines[i].length >= el.selectionStart) { idx = i; break; }
+    pos += lines[i].length + 1;
+  }
+  // 빈 줄이면 아래로 내려가며 코드가 있는 첫 줄을 찾습니다.
+  while (idx < lines.length - 1 && !stripRComments(lines[idx]).trim()) idx++;
+
+  let j = idx, frag = lines[idx];
+  while (j < lines.length - 1 && isIncomplete(frag)) { j++; frag += "\n" + lines[j]; }
+
+  let end = 0;
+  for (let i = 0; i <= j; i++) end += lines[i].length + 1;
+  return { text: frag, end: Math.min(end, el.value.length) };
+}
+
+function isIncomplete(src) {
+  const code = stripRComments(src);
+  let depth = 0, q = null;
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i];
+    if (q) {
+      if (ch === "\\") i++;
+      else if (ch === q) q = null;
+    } else if (ch === '"' || ch === "'" || ch === "`") q = ch;
+    else if ("([{".includes(ch)) depth++;
+    else if (")]}".includes(ch)) depth--;
+  }
+  if (depth > 0 || q) return true;
+  return /(<-|->|[+\-*/^,&|~=]|%[^%]*%|\|>)\s*$/.test(code.trimEnd());
+}
 function stripRComments(src) {
   return src.split("\n").map(line => {
     let out = "", q = null;
@@ -541,36 +625,43 @@ function updateHighlight() {
   hl.innerHTML = highlightR(ta.value) + "\n";
 }
 
+/* R 코드 하이라이트 — 한 번의 스캔으로 토큰을 나눕니다.
+   (이전 방식은 주석·문자열 안에서 연산자·숫자가 다시 치환되어
+    "OP →", "NUM 5개" 처럼 마커가 새어 나오는 문제가 있었습니다.) */
+const R_BUILTINS = new Set(("library require print cat paste paste0 c list data.frame matrix vector length nrow ncol dim str summary head tail class typeof is.na which seq rep mean median sd var sum min max range table subset merge rbind cbind apply sapply lapply vapply mapply do.call read.csv write.csv readRDS saveRDS glimpse transmute mutate select filter arrange group_by summarise summarize drop_na model.matrix scale colMeans colSums rowMeans rnorm runif sample set.seed round sqrt exp log abs pmax pmin t solve as.vector as.numeric as.integer as.factor factor data.matrix lm glm predict coef resid fitted glmnet cv.glmnet rpart prune ranger randomForest xgboost xgb.DMatrix keras_model_sequential layer_dense layer_dropout compile fit evaluate ggplot aes labs theme element_text geom_line geom_point geom_col geom_bar geom_hline geom_vline facet_wrap facet_grid scale_x_log10 scale_y_continuous pivot_longer pivot_wider rename pull slice distinct count left_join expand.grid tibble matchit causal_forest DoubleMLPLR DoubleMLIRM lrn").split(" "));
+
+const R_RULES = [
+  { cls: "hl-blank", re: /_{3,}/y },
+  { cls: "hl-cmt",   re: /#[^\n]*/y },
+  { cls: "hl-str",   re: /"(?:[^"\\]|\\[\s\S])*"?|'(?:[^'\\]|\\[\s\S])*'?|`(?:[^`\\]|\\[\s\S])*`?/y },
+  { cls: "hl-kw",    re: /\b(?:if|else|for|while|repeat|break|next|return|function|in|TRUE|FALSE|NULL|NA|NaN|Inf)\b/y },
+  { cls: "hl-num",   re: /\b\d+\.?\d*(?:[eE][+-]?\d+)?L?\b/y },
+  { cls: "ident",    re: /[a-zA-Z.][a-zA-Z0-9._]*/y },
+  { cls: "hl-op",    re: /<<-|->>|<-|->|%[a-zA-Z*%|>^\/]*%|\|>|==|!=|<=|>=|&&|\|\||[-+*\/^<>!=&|:~$@]/y },
+];
+
 function highlightR(code) {
-  let out = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  out = out.replace(/(_____)/g, "\x00BLK\x01$1\x02");
-  out = out.replace(/(#[^\n]*)/g, "\x00CMT\x01$1\x02");
-  out = out.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, "\x00STR\x01$1\x02");
-
-  const kw = /\b(if|else|for|while|repeat|break|next|return|function|in|TRUE|FALSE|NULL|NA|NaN|Inf|T|F)\b/g;
-  out = out.replace(kw, "\x00KW\x01$1\x02");
-
-  const bi = /\b(library|require|print|cat|paste0?|c|list|data\.frame|matrix|vector|length|nrow|ncol|dim|str|summary|head|tail|class|typeof|is\.na|which|seq|rep|mean|median|sd|var|sum|min|max|range|table|subset|merge|rbind|cbind|apply|l?sapply|mapply|do\.call|read\.csv|write\.csv|readRDS|saveRDS|glimpse|transmute|drop_na|model\.matrix|scale|colMeans|rnorm|runif|set\.seed|sample|lm|glm|predict|coef|glmnet|cv\.glmnet|rpart|rpart\.plot|prune|ranger|randomForest|xgboost|xgb\.DMatrix|keras_model_sequential|layer_dense|layer_dropout|compile|fit|ggplot|aes|geom_\w+|facet_\w+|labs|theme\w*|filter|select|mutate|arrange|group_by|summaris[ez]|left_join|pivot_\w+|rename|pull|slice|distinct|count|matchit|causal_forest|DoubleMLPLR|DoubleMLIRM|lrn)\b/g;
-  out = out.replace(bi, "\x00BI\x01$1\x02");
-
-  out = out.replace(/(\x00[A-Z]+\x01[\s\S]*?\x02)|\b(\d+\.?\d*(?:[eE][+-]?\d+)?L?)\b/g,
-    (m, token, num) => token ? token : "\x00NUM\x01" + num + "\x02");
-  out = out.replace(/(&lt;-|-&gt;|&lt;&lt;-|%&gt;%|\|&gt;|%in%|%\*%|==|!=|&lt;=|&gt;=|&&|\|\||!(?!=)|\+(?!\x00)|-(?!\x00)|\*|\/|\^|::|:(?!:))/g, "\x00OP\x01$1\x02");
-
-  out = out.replace(/\b([a-zA-Z_.][a-zA-Z0-9_.]*)(?=\s*\()/g, (m, name) =>
-    m.includes("\x00") ? m : `\x00FN\x01${name}\x02`);
-
-  out = out
-    .replace(/\x00BLK\x01([\s\S]*?)\x02/g, '<span class="hl-blank">$1</span>')
-    .replace(/\x00CMT\x01([\s\S]*?)\x02/g, '<span class="hl-cmt">$1</span>')
-    .replace(/\x00STR\x01([\s\S]*?)\x02/g, '<span class="hl-str">$1</span>')
-    .replace(/\x00KW\x01(.*?)\x02/g,  '<span class="hl-kw">$1</span>')
-    .replace(/\x00BI\x01(.*?)\x02/g,  '<span class="hl-bi">$1</span>')
-    .replace(/\x00NUM\x01(.*?)\x02/g, '<span class="hl-num">$1</span>')
-    .replace(/\x00OP\x01(.*?)\x02/g,  '<span class="hl-op">$1</span>')
-    .replace(/\x00FN\x01(.*?)\x02/g,  '<span class="hl-fn">$1</span>');
-
+  let out = "", i = 0;
+  const n = code.length;
+  while (i < n) {
+    let matched = false;
+    for (const rule of R_RULES) {
+      rule.re.lastIndex = i;
+      const m = rule.re.exec(code);
+      if (!m || m.index !== i || m[0].length === 0) continue;
+      const text = m[0];
+      let cls = rule.cls;
+      if (cls === "ident") {
+        const after = code.slice(i + text.length).match(/^\s*\(/);
+        cls = after ? (R_BUILTINS.has(text) ? "hl-bi" : "hl-fn") : null;
+      }
+      out += cls ? `<span class="${cls}">${escHtml(text)}</span>` : escHtml(text);
+      i += text.length;
+      matched = true;
+      break;
+    }
+    if (!matched) { out += escHtml(code[i]); i++; }
+  }
   return out;
 }
 
@@ -584,7 +675,8 @@ function setupShortcuts() {
 
     if (alt && key === "-")                            { e.preventDefault(); insertAtCursor(editor, " <- "); return; }
     if (ctrl && shift && (key === "M" || key === "m")) { e.preventDefault(); insertAtCursor(editor, " %>% "); return; }
-    if (ctrl && key === "Enter")                       { e.preventDefault(); runCode(); return; }
+    if (ctrl && shift && key === "Enter")              { e.preventDefault(); runCode("all"); return; }
+    if (ctrl && !shift && key === "Enter")              { e.preventDefault(); runCode("fragment"); return; }
     if (ctrl && shift && (key === "C" || key === "c")) { e.preventDefault(); toggleComment(editor); return; }
     if (ctrl && !shift && (key === "d" || key === "D")){ e.preventDefault(); deleteLine(editor); return; }
     if (ctrl && shift && (key === "D" || key === "d")) { e.preventDefault(); duplicateLine(editor); return; }
