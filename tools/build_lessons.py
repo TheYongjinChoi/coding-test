@@ -36,23 +36,45 @@ SESSIONS = [
     dict(id="workflow", label="1일차 1강", qmd="1-1Workflow_sol.qmd",
          title="통계적 학습의 워크플로와 정규화 회귀",
          subtitle="OLS · Lasso · Ridge", color="#1D9E75",
-         tracker=f"{RAW}/tracker_d1-1_workflow.R"),
+         tracker=f"{RAW}/tracker_workflow.R",
+         check_ids={}),
+
     dict(id="nn", label="1일차 2강", qmd="1-2NN_sol.qmd",
          title="신경망",
          subtitle="순전파·역전파 직접 구현 · Keras", color="#185FA5",
-         tracker=f"{RAW}/tracker_d1-2_nn.R"),
+         tracker=f"{RAW}/tracker_nn.R",
+         # qmd 에 check("task") 로 남아 있는 자리를 tracker 의 실제 id 로 잇습니다.
+         check_ids={
+             "Task 4. 2단계 학습 방식 설정": "nn-04-compile",
+             "Task 5. 3단계 학습 실행과 학습곡선": "nn-05-fit",
+             "Task 11. 최종 평가": "nn-11-final",
+         }),
+
     dict(id="ensemble", label="1일차 3강", qmd="03Ensemble_sol.qmd",
          title="트리 기반 앙상블",
          subtitle="의사결정트리 · 배깅 · 랜덤포레스트 · 부스팅", color="#854F0B",
-         tracker=f"{RAW}/tracker_d1-3_ensemble.R"),
+         tracker=f"{RAW}/tracker_ensemble.R",
+         # 이 qmd 에는 아직 check() 줄이 없어 단계 제목으로 직접 잇습니다.
+         check_ids={
+             "Task 1-1. 트리 적합과 시각화": "ens-01-tree",
+             "Task 1-2. 예측과 평가": "ens-02-tree-predict",
+             "Task 1-3. (선택사항) 최대 트리와 가지치기": "ens-03-prune",
+             "Task 2-1. 배깅 직접 구현": "ens-04-bagging",
+             "Task 2-2. 랜덤 포레스트": "ens-05-rf",
+             "Task 3-1. 패키지없이 구현하는 부스팅": "ens-06-boost-two",
+             "Task 3-2. 100회 반복하기": "ens-07-boost-loop",
+             "Task 3-3. (선택사항) XGBoost": "ens-08-xgboost",
+         }),
+
     dict(id="weights", label="1일차 4강", qmd="1-4Weights_sol.qmd",
          title="가중치와 인과추론 복습",
          subtitle="성향점수 · IPW", color="#534AB7",
-         tracker=None),
+         tracker=None, check_ids={}),
+
     dict(id="dml", label="2일차 1강", qmd="2-1DML_sol.qmd",
          title="이중 기계학습",
          subtitle="Neyman 직교성 · 교차적합", color="#D4537E",
-         tracker=None),
+         tracker=None, check_ids={}),
 ]
 
 
@@ -329,6 +351,7 @@ def build_blanks(starter, solution):
 def build_session(meta, qmd_path):
     items = parse_qmd(qmd_path)
     chapters, cur, pending_h2, pending_text = [], None, None, []
+    used_ids = set()   # 같은 제목의 후속 "결과 확인" 단계가 id 를 다시 가져가지 않도록
 
     def close():
         if cur and cur["steps"]:
@@ -358,11 +381,12 @@ def build_session(meta, qmd_path):
                 cur["steps"][-1]["solution"] = code.strip()
             continue
         ids = re.findall(r'check\("([^"]+)"\)', code)
+        step_title = pending_h2 or cur["title"]
         cur["steps"].append({
-            "title": pending_h2 or cur["title"],
+            "title": step_title,
             "concept": md2html("\n\n".join(pending_text)),
             "starter": strip_grading_block(code),
-            "checkId": ids[0] if ids and ids[0] != "task" else None,
+            "checkId": _pick_id(meta, step_title, ids, used_ids),
             "fill": is_eval_false(it),
             "solution": None,
         })
@@ -373,6 +397,17 @@ def build_session(meta, qmd_path):
         for st in ch["steps"]:
             st["blanks"] = build_blanks(st["starter"], st["solution"]) if st["fill"] else []
     return chapters
+
+
+def _pick_id(meta, title, ids_in_code, used):
+    """qmd 의 check() 가 우선, 없으면 등록부의 제목 매핑. 한 id 는 한 번만 씁니다."""
+    cid = ids_in_code[0] if ids_in_code and ids_in_code[0] != "task" else None
+    if cid is None:
+        cid = meta["check_ids"].get(title)
+    if cid is None or cid in used:
+        return None
+    used.add(cid)
+    return cid
 
 
 def slug(step, chapter_title):
