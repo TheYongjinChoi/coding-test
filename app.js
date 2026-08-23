@@ -64,7 +64,7 @@ function buildStepList() {
 }
 
 /* R 세션(단계 간 객체가 유지되는 실행 환경)을 서버에 만듭니다. */
-async function initRSession() {
+async function initRSession(isRetry = false) {
   try {
     const res = await fetch(`${API_URL}/init`, {
       method: "POST",
@@ -73,12 +73,18 @@ async function initRSession() {
         sid, session: SESSION_ID, tracker: COURSE.tracker, student: studentId
       })
     });
+    if (!res.ok) throw new Error(res.status);
     const data = await res.json();
     trackerReady = !!data.tracker;
     if (COURSE.tracker && !trackerReady) {
       toast("서버 채점 스크립트를 불러오지 못해 브라우저 채점으로 진행합니다.");
     }
   } catch (e) {
+    // 배정된 서버가 응답하지 않으면 다음 서버로 넘깁니다.
+    if (!isRetry && failoverApi()) {
+      toast("실행 서버를 바꿨습니다. 「데이터 준비」 단계부터 다시 실행해 주세요.");
+      return initRSession(true);
+    }
     toast("R 서버 연결이 지연되고 있습니다. 첫 실행이 느릴 수 있습니다.");
   }
 }

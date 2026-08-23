@@ -3,7 +3,53 @@
 //  lessons/*.js 가 registerCourse() 로 자기 자신을 등록합니다.
 // ============================================================
 
-const API_URL = "https://coding-api-enum.onrender.com";
+/* ── R 서버 풀 ────────────────────────────────────────────────
+   같은 이미지를 Render에 여러 개 띄우고 여기에 URL을 나열합니다.
+   학생은 링크 하나만 받고, 브라우저가 자기 sid를 해시해 한 대를 고릅니다.
+   R 세션 환경이 프로세스 메모리에 있으므로 한 번 정해지면 계속 그 서버를 씁니다.
+   서버를 늘리거나 줄이려면 이 배열만 고치면 됩니다. */
+const API_POOL = [
+  "https://coding-api-enum.onrender.com",
+  // "https://coding-api-b.onrender.com",
+  // "https://coding-api-c.onrender.com",
+];
+
+const API_PIN_KEY = "kapae-api-pin";
+
+function hashString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/* 배정 규칙
+   1. 이전에 배정받아 둔 서버가 풀에 아직 있으면 그대로 사용
+   2. 없으면 sid 해시로 결정 — 같은 브라우저는 항상 같은 서버 */
+function pickApi() {
+  try {
+    const pinned = localStorage.getItem(API_PIN_KEY);
+    if (pinned && API_POOL.includes(pinned)) return pinned;
+  } catch (e) {}
+  const url = API_POOL[hashString(getSid()) % API_POOL.length];
+  try { localStorage.setItem(API_PIN_KEY, url); } catch (e) {}
+  return url;
+}
+
+/* 배정된 서버가 죽었을 때 다음 서버로 넘깁니다.
+   세션 환경은 새 서버에 없으므로 데이터 준비 단계를 다시 실행해야 합니다. */
+function failoverApi() {
+  if (API_POOL.length < 2) return false;
+  const next = API_POOL[(API_POOL.indexOf(API_URL) + 1) % API_POOL.length];
+  if (next === API_URL) return false;
+  API_URL = next;
+  try { localStorage.setItem(API_PIN_KEY, next); } catch (e) {}
+  return true;
+}
+
+let API_URL = "";   // 아래 getSid() 정의 이후 window load 시점에 확정됩니다
 
 /* 마스터 페이지에 표시할 순서와 부가 정보.
    여기에 한 줄 추가하고 lessons/<id>.js 를 만들면 세션이 늘어납니다. */
@@ -83,3 +129,6 @@ function toggleTheme() {
   const cur = document.documentElement.getAttribute("data-theme") || "dark";
   applyTheme(cur === "dark" ? "light" : "dark");
 }
+
+/* 서버 배정 확정 (getSid 정의 이후에 실행되어야 합니다) */
+API_URL = pickApi();

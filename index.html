@@ -124,7 +124,7 @@ async function pingServer() {
     const data = await res.json();
     if (data.status === 'ok') {
       dot.classList.add('ok');
-      text.textContent = `R 서버 준비 완료 (${((Date.now() - t0) / 1000).toFixed(1)}초)`;
+      text.textContent = `R 서버 준비 완료 (${((Date.now() - t0) / 1000).toFixed(1)}초)${shard}`;
       return;
     }
     throw new Error();
