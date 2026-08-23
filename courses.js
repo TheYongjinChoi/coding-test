@@ -59,6 +59,10 @@ const SESSION_ORDER = [
   { id: "ensemble", est: "60분", note: "의사결정트리에서 배깅·랜덤포레스트·부스팅까지" },
 ];
 
+/* 서버가 길이 1인 벡터를 배열로 감싸 보내는 경우에 대비한 헬퍼.
+   [false] 는 자바스크립트에서 참으로 평가되므로 그냥 두면 위험합니다. */
+function unbox(v) { return Array.isArray(v) ? v[0] : v; }
+
 window.COURSES = {};
 function registerCourse(course) { window.COURSES[course.id] = course; }
 

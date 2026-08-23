@@ -75,7 +75,7 @@ async function initRSession(isRetry = false) {
     });
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
-    trackerReady = !!data.tracker;
+    trackerReady = !!unbox(data.tracker);
     if (COURSE.tracker && !trackerReady) {
       toast("서버 채점 스크립트를 불러오지 못해 브라우저 채점으로 진행합니다.");
     }
@@ -317,7 +317,7 @@ async function runCode(mode = "all") {
   stepAttempts[currentIdx] = (stepAttempts[currentIdx] || 0) + 1;
   renderOutput(data);
 
-  if (!data.success) {
+  if (!unbox(data.success)) {
     setStatus("✗ 오류", "status-err");
     runBtn.disabled = false; runBtn.textContent = prevLabel;
     runBtn.onclick = prevClick;
@@ -372,7 +372,7 @@ async function grade(step, code, out) {
         body: JSON.stringify({ sid, session: SESSION_ID, check_id: step.checkId })
       });
       const d = await res.json();
-      if (d.available) { serverPassed = !!d.passed; feedback = d.feedback; }
+      if (unbox(d.available)) { serverPassed = !!unbox(d.passed); feedback = unbox(d.feedback); }
     } catch (e) { /* 서버 채점 실패 시 브라우저 채점만 사용 */ }
   }
 
@@ -424,8 +424,8 @@ function renderOutput(data) {
   const outEl = document.getElementById("output-body");
   const plots = document.getElementById("output-plots");
 
-  if (!data.success) {
-    outEl.innerHTML = `<span class="out-err">${escHtml(data.error || "알 수 없는 오류")}</span>`;
+  if (!unbox(data.success)) {
+    outEl.innerHTML = `<span class="out-err">${escHtml(unbox(data.error) || "알 수 없는 오류")}</span>`;
     plots.innerHTML = "";
     return;
   }
@@ -450,7 +450,7 @@ function renderOutput(data) {
     `<div class="plot-item"><img src="data:image/png;base64,${String(b64).replace(/\s/g, "")}" alt="R plot"></div>`
   ).join("");
 
-  if (data.fresh && currentIdx > 0) {
+  if (unbox(data.fresh) && currentIdx > 0) {
     toast("서버의 R 세션이 새로 만들어졌습니다. 「데이터 준비」 단계를 다시 실행해야 할 수 있습니다.");
   }
 }
