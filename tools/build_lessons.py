@@ -50,7 +50,7 @@ SESSIONS = [
              "Task 11. 최종 평가": "nn-11-final",
          }),
 
-    dict(id="ensemble", label="1일차 3강", qmd="03Ensemble_sol.qmd",
+    dict(id="ensemble", label="1일차 3강", qmd="1-3Ensemble_sol.qmd",
          title="트리 기반 앙상블",
          subtitle="의사결정트리 · 배깅 · 랜덤포레스트 · 부스팅", color="#854F0B",
          tracker=f"{RAW}/tracker_ensemble.R",
@@ -66,9 +66,9 @@ SESSIONS = [
              "Task 3-3. (선택사항) XGBoost": "ens-08-xgboost",
          }),
 
-    dict(id="weights", label="1일차 4강", qmd="1-4Weights_sol.qmd",
+    dict(id="causal", label="1일차 4강", qmd="1-4Causal_sol.qmd",
          title="가중치와 인과추론 복습",
-         subtitle="성향점수 · IPW", color="#534AB7",
+         subtitle="성향점수 · 가중치", color="#534AB7",
          tracker=None, check_ids={}),
 
     dict(id="dml", label="2일차 1강", qmd="2-1DML_sol.qmd",
