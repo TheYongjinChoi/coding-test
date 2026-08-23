@@ -1,18 +1,18 @@
 // ============================================================
-//  2강 실습 — 신경망
-//  자동 생성 후 손으로 다듬는 파일입니다. 개념/힌트/성공 메시지는 여기서 수정하세요.
-//  blanks[].answer 는 채점용 정규식(공백·주석 제거 후 비교)입니다.
+//  1일차 2강 — 신경망
+//  tools/build_lessons.py 가 qmd 에서 생성합니다. 직접 고치면 다음 실행 때 덮어씁니다.
+//  단, hint · success · implication 은 제목으로 찾아 보존합니다.
 // ============================================================
 
 registerCourse({
   id: "nn",
-  title: "2강. 신경망",
+  label: "1일차 2강",
+  title: "신경망",
   subtitle: "순전파·역전파 직접 구현 · Keras",
   color: "#185FA5",
-  tracker: "https://raw.githubusercontent.com/TheYongjinChoi/kapae2026-exercise/main/tracker_nn.R",   // null 이면 클라이언트 채점만 사용
+  tracker: "https://raw.githubusercontent.com/TheYongjinChoi/kapae2026-exercise/main/tracker/tracker_nn.R",
   chapters: [
     {
-      id: 2.0,
       title: "데이터 준비",
       color: "#185FA5",
       steps: [
@@ -28,7 +28,7 @@ registerCourse({
           implication: null
         },
         {
-          title: "영모형 RMSE 계산",
+          title: "데이터 준비 — 결과 확인",
           mode: "run",
           checkId: null,
           starter_path: "snippets/nn/02-setup.R",
@@ -41,7 +41,6 @@ registerCourse({
       ]
     },
     {
-      id: 2.1,
       title: "Part 1. 선형회귀에 은닉층 넣어보기",
       color: "#185FA5",
       steps: [
@@ -87,12 +86,11 @@ registerCourse({
       ]
     },
     {
-      id: 2.2,
       title: "Part 2. Keras로 구현하기",
       color: "#185FA5",
       steps: [
         {
-          title: "Keras 준비",
+          title: "Part 2. Keras로 구현하기",
           mode: "run",
           checkId: null,
           starter_path: "snippets/nn/05-run.R",
@@ -120,8 +118,8 @@ registerCourse({
         {
           title: "Task 4. 2단계 학습 방식 설정",
           mode: "fill",
-          checkId: null,
-          starter_path: "snippets/nn/07-task4.R",
+          checkId: "nn-04-compile",
+          starter_path: "snippets/nn/07-nn-04-compile.R",
           concept: "<p><code>compile()</code> 함수로 학습 방식을 설정합니다.</p>\n<ul>\n<li><code>loss</code>: 무엇을 줄일지 정합니다. <code>\"mse\"</code>를 지정하면 Part 1에서 직접 계산하던 <code>mean((y_train - pred)^2)</code>와 같은 평균제곱오차가 됩니다.\n</li><li><code>optimizer</code>: 어떻게 줄일지 정합니다. <code>optimizer_adam()</code>을 지정합니다. Part 1에서는 기울기에 학습률을 곱해 그대로 빼는 순수한 경사하강법을 썼지만, Adam은 파라미터마다 최근 기울기를 반영해 보폭을 조절합니다.\n</li><li><code>learning_rate</code>: 한 번에 움직일 폭입니다. Part 1의 <code>lr</code>에 해당하며 여기서도 <code>0.01</code>로 지정합니다.\n</li><li><code>metrics</code>: 학습에는 쓰이지 않고 기록만 남는 지표입니다. <code>metric_root_mean_squared_error()</code>를 지정하면 손실의 제곱근이 함께 기록되어, 뒤에서 모형을 비교할 때 쓰는 RMSE와 같은 단위로 학습 과정을 볼 수 있습니다.\n</li></ul>",
           blanks: [
             { line: "model |> _____(", answer: /model\|>compile\(/ },
@@ -136,8 +134,8 @@ registerCourse({
         {
           title: "Task 5. 3단계 학습 실행과 학습곡선",
           mode: "fill",
-          checkId: null,
-          starter_path: "snippets/nn/08-task5.R",
+          checkId: "nn-05-fit",
+          starter_path: "snippets/nn/08-nn-05-fit.R",
           concept: "<p><code>fit()</code> 함수로 학습을 실행합니다.</p>\n<ul>\n<li><code>x</code>, <code>y</code>: 학습에 사용할 입력과 결과입니다. <code>x_train</code>과 <code>y_train</code>을 지정합니다. <code>keras</code>는 공식을 받지 않으므로 표준화해 둔 행렬을 그대로 넘깁니다.\n</li><li><code>epochs</code>: 훈련 데이터 전체를 몇 번 통과할지 정합니다. Part 1의 <code>n_iter</code>에 해당하며 여기에서는 <code>200</code>으로 지정합니다.\n</li><li><code>batch_size</code>: 가중치를 한 번 갱신할 때 사용할 관측치 수입니다. <code>64</code>로 지정합니다. Part 1에서는 매번 전체 관측치로 기울기를 계산했지만, 여기서는 64개씩 나눠 보면서 한 epoch 안에서 여러 번 갱신합니다.\n</li><li><code>validation_split</code>: 훈련 데이터에서 검증용으로 떼어 낼 비율입니다. <code>0.2</code>를 지정해 20%를 떼어 냅니다. 이 몫은 가중치 갱신에 쓰이지 않으므로 학습 도중 처음 보는 관측치에서의 성능을 가늠할 수 있습니다. 훈련 데이터 안에서 할당하는 것이므로 테스트 데이터와 혼동하지 마세요.\n</li><li><code>verbose</code>: 진행 상황 출력 여부입니다. <code>0</code>을 지정해 끕니다.\n</li></ul>\n<p>학습 기록은 <code>history</code>에 저장합니다. <code>history\\\\(metrics\\\\)loss</code>에는 epoch마다 계산된 훈련 손실이, <code>$val_loss</code>에는 검증 손실이 벡터로 담기며, 이 둘로 학습곡선 두 개를 그립니다.</p>",
           blanks: [
             { line: "history <- model |> _____(", answer: /history<\-model\|>fit\(/ },
@@ -170,12 +168,11 @@ registerCourse({
       ]
     },
     {
-      id: 2.3,
       title: "Part 3. (선택사항) 하이퍼파라미터 조정",
       color: "#185FA5",
       steps: [
         {
-          title: "기준 검증 RMSE 확인",
+          title: "Part 3. (선택사항) 하이퍼파라미터 조정",
           mode: "run",
           checkId: null,
           starter_path: "snippets/nn/10-run.R",
@@ -240,7 +237,6 @@ registerCourse({
       ]
     },
     {
-      id: 2.4,
       title: "Part 4. (선택사항) 그리드서치",
       color: "#185FA5",
       steps: [
@@ -266,8 +262,8 @@ registerCourse({
         {
           title: "Task 11. 최종 평가",
           mode: "run",
-          checkId: null,
-          starter_path: "snippets/nn/15-task11.R",
+          checkId: "nn-11-final",
+          starter_path: "snippets/nn/15-nn-11-final.R",
           concept: "<p>이제 최적 조합으로 훈련 데이터 전체를 학습하고 테스트 데이터로 한 번만 평가합니다. 아래 코드를 실행해 네 모형을 나란히 봅니다. 점선은 선형회귀의 테스트 RMSE입니다.</p>\n<ul>\n<li><code>best</code>: <code>results</code>의 첫 행입니다. 정렬해 두었으므로 <code>cv_rmse</code>가 가장 작은 조합입니다.\n</li><li><code>final_model</code>: <code>best</code>의 세 값을 <code>build_model()</code>에 넘겨 만듭니다.\n</li><li><code>fit()</code>: <code>epochs = 100</code>, <code>validation_split = 0.2</code>, 조기 종료 콜백을 함께 넘깁니다. Part 4의 교차검증은 설정을 고르는 데까지만 쓰였고, 최종 학습은 훈련 데이터 전체로 한 번 합니다.\n</li><li><code>pred_final</code>, <code>rmse_final</code>: 테스트 예측값과 RMSE입니다. 이 실습에서 테스트 데이터를 쓰는 것은 여기가 처음이자 마지막입니다.\n</li></ul>",
           blanks: [],
           hint: null,

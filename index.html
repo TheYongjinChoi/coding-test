@@ -78,7 +78,7 @@ function renderSessions() {
       <article class="session-card ${state === 'done' ? 'is-done' : ''}"
                style="--accent:${course.color}">
         <div class="session-top">
-          <span class="session-badge">${course.title.split('.')[0]}강</span>
+          <span class="session-badge">${course.label || course.title.split('.')[0]}</span>
           ${state === 'done' ? '<span class="session-complete">완료</span>' : ''}
           ${course.tracker ? '' : '<span class="session-tag">자체 채점</span>'}
         </div>

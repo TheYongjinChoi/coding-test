@@ -40,7 +40,8 @@ async function boot() {
   }
   sid = getSid();
 
-  document.getElementById("session-label").textContent = COURSE.title;
+  document.getElementById("session-label").textContent =
+    COURSE.label ? `${COURSE.label} · ${COURSE.title}` : COURSE.title;
   document.getElementById("footer-right").textContent =
     COURSE.tracker ? "정답 확인: 서버 채점 사용" : "정답 확인: 브라우저 채점 사용";
 

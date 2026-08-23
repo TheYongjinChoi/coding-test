@@ -1,18 +1,18 @@
 // ============================================================
-//  1강 실습 — 통계적 학습의 워크플로와 정규화 회귀
-//  자동 생성 후 손으로 다듬는 파일입니다. 개념/힌트/성공 메시지는 여기서 수정하세요.
-//  blanks[].answer 는 채점용 정규식(공백·주석 제거 후 비교)입니다.
+//  1일차 1강 — 통계적 학습의 워크플로와 정규화 회귀
+//  tools/build_lessons.py 가 qmd 에서 생성합니다. 직접 고치면 다음 실행 때 덮어씁니다.
+//  단, hint · success · implication 은 제목으로 찾아 보존합니다.
 // ============================================================
 
 registerCourse({
   id: "workflow",
-  title: "1강. 통계적 학습의 워크플로와 정규화 회귀",
+  label: "1일차 1강",
+  title: "통계적 학습의 워크플로와 정규화 회귀",
   subtitle: "OLS · Lasso · Ridge",
   color: "#1D9E75",
-  tracker: "https://raw.githubusercontent.com/TheYongjinChoi/kapae2026-exercise/main/tracker1-1_workflow.R",   // null 이면 클라이언트 채점만 사용
+  tracker: "https://raw.githubusercontent.com/TheYongjinChoi/kapae2026-exercise/main/tracker/tracker_workflow.R",
   chapters: [
     {
-      id: 1.0,
       title: "데이터 준비",
       color: "#1D9E75",
       steps: [
@@ -41,7 +41,6 @@ registerCourse({
       ]
     },
     {
-      id: 1.1,
       title: "Part 1. 통계적 학습의 워크플로",
       color: "#1D9E75",
       steps: [
@@ -93,7 +92,6 @@ registerCourse({
       ]
     },
     {
-      id: 1.2,
       title: "Part 2. 정규화 회귀를 적용한 학습 워크플로",
       color: "#1D9E75",
       steps: [
@@ -116,7 +114,7 @@ registerCourse({
           implication: null
         },
         {
-          title: "Task 2-2. Lasso 회귀와 페널티(람다) 튜닝",
+          title: "Task 2-2. Lasso 회귀와 $\\lambda$ 튜닝",
           mode: "fill",
           checkId: "task2-2-lasso",
           starter_path: "snippets/workflow/07-task2-2-lasso.R",
@@ -168,7 +166,6 @@ registerCourse({
       ]
     },
     {
-      id: 1.3,
       title: "Part 3 (선택사항). Ridge로 한 번 더 교체",
       color: "#1D9E75",
       steps: [
